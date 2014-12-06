@@ -2,13 +2,21 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/ipc.h>
-#include <linux/sem.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
 #define KEY 0x01
 #define NUMBER_OF_SEMAPHORES 5 // A set can contain more semaphore
 #define SEMAPHORE 2 // Choose a semaphore from 0 to NUMBER_OF_SEMAPHORES-1
 #define SEMAPHORE_VALUE 10
+
+// POSIX force you to write your own union semun
+union semun {
+	int val;
+	struct semid_ds *buf;
+	unsigned short *array;
+	struct seminfo *__buf;
+};
 
 int getSemaphoreSet(char id);
 void printSemaphoreInfo(int semaphore_id);
@@ -54,11 +62,7 @@ int getSemaphoreSet(char id){
 }
 
 void printSemaphoreInfo(int semaphore_id){
-#ifdef __LP64__
-	struct semid64_ds info;
-#else
 	struct semid_ds info;
-#endif
 
 	// IPC_STAT: get descriptor structure
 	// IPC_SET: set descriptor (only permissions can be changed)
@@ -98,11 +102,7 @@ void printSemaphoreInfo(int semaphore_id){
 }
 
 void removeSemaphoreSet(int semaphore_id){
-#ifdef __LP64__
-	struct semid64_ds info;
-#else
 	struct semid_ds info;
-#endif
 
 	if(semctl(semaphore_id, 0, IPC_RMID, NULL) == -1){
 		perror("Cannot remove the semaphore set");

@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <linux/ipc.h>
-#include <linux/msg.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include "message.h"
 
 #define KEY 0x01
@@ -13,6 +13,8 @@ void printMessageQueueInfo(int queue_id);
 void removeEmptyQueue(int queue_id);
 
 int main(int argc, const char *argv[]){
+	if(argc < 2) usage();
+
 	int queue_id = getMessageQueue(KEY);
 
 	// Print message queue parameters
@@ -20,17 +22,16 @@ int main(int argc, const char *argv[]){
 
 	// Preparing the message
 	struct message m1;
+	m1.type = 1; // Can be use as a label for multiplexing
+	m1.sender = getpid();
+	memcpy(m1.message, argv[1], strlen(argv[1]) +1);
 
-	// Dequeue the message
-	// type=0: the oldest message in the queue
-	// type=n: the oldest message with type == n
-	int type = 0;
-	if(msgrcv(queue_id, &m1, sizeof(struct message) - sizeof(long), type, 0) == -1){
-		perror("Cannot receive message");
+	// Enqueue the message
+	if(msgsnd(queue_id, &m1, sizeof(struct message) - sizeof(long), 0) == -1){
+		perror("Cannot send message");
 		exit(EXIT_FAILURE);
 	}
-	printf("Message received: %s\n", m1.message);
-	removeEmptyQueue(queue_id);
+	printf("Message sent: %s\n", argv[1]);
 
 	return 0;
 }
@@ -54,12 +55,7 @@ int getMessageQueue(char id){
 }
 
 void printMessageQueueInfo(int queue_id){
-
-#ifdef __LP64__
-	struct msqid64_ds info;
-#else
 	struct msqid_ds info;
-#endif
 
 	// IPC_STAT: get descriptor structure
 	// IPC_SET: set descriptor (only permissions can be changed)
@@ -88,11 +84,7 @@ void printMessageQueueInfo(int queue_id){
 }
 
 void removeEmptyQueue(int queue_id){
-#ifdef __LP64__
-	struct msqid64_ds info;
-#else
 	struct msqid_ds info;
-#endif
 
 	if(msgctl(queue_id, IPC_STAT, &info) == -1){
 		perror("Cannot retrieve information about the message queue");
@@ -106,4 +98,9 @@ void removeEmptyQueue(int queue_id){
 		}
 	}
 	printf("Message queue removed\n");
+}
+
+void usage(){
+	printf("./a.out <message>\n");
+	exit(EXIT_FAILURE);
 }
