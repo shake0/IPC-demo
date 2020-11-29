@@ -9,6 +9,8 @@
 #define KEY 0x01
 
 int getMessageQueue(char id);
+void printMessageQueueInfo(int queue_id);
+void removeEmptyQueue(int queue_id);
 void usage();
 
 int main(int argc, const char *argv[]){

@@ -11,6 +11,7 @@
 int getMessageQueue(char id);
 void printMessageQueueInfo(int queue_id);
 void removeEmptyQueue(int queue_id);
+void usage();
 
 int main(int argc, const char *argv[]){
 	if(argc < 2) usage();
