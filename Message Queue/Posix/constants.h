@@ -17,5 +17,5 @@ int flag = 0;
 int firstFivesSent = 0;
 
 struct message {
-    char string[5];
+	char string[5];
 };
