@@ -1,15 +1,15 @@
-CC = gcc
-EXE = p1
-EXE_1 = p2
-C_EXT =*.c
-EXE_EXT =*.o
-RMVER= rm -f
+SRC_PROCESS_A=program_1.c
+EXE_PROCESS_A=a.out
+SRC_PROCESS_B=program_2.c
+EXE_PROCESS_B=b.out
+MQUEUE=/dev/mqueue/MQUEUE
 
-default:
-	${CC} -o ${EXE} program_1${C_EXT} -lrt
-	${CC} -o ${EXE_1} program_2${C_EXT} -lrt
 
+all: processA processB
+
+processA: ${SRC_PROCESS_A}
+	gcc ${SRC_PROCESS_A} -o ${EXE_PROCESS_A} -lrt
+processB: ${SRC_PROCESS_B}
+	gcc ${SRC_PROCESS_B} -o ${EXE_PROCESS_B} -lrt
 clean:
-	${RMVER} ${EXE} ${EXE_EXT}
-	${RMVER} ${EXE_1} ${EXE_EXT}
-	${RMVER} /dev/mqueue/QUEUE_PROG_1 /dev/mqueue/QUEUE_PROG_2
+	rm -f ${EXE_PROCESS_A} ${EXE_PROCESS_B} ${MQUEUE}

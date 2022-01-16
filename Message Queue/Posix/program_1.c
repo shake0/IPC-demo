@@ -1,82 +1,99 @@
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "constants.h"
 #define SIZE 52
 
-void usage();
+void usage(){
+	printf("./a.out <message>\n");
+	exit(EXIT_FAILURE);
+}
 
+void noop(int interrupt) {} // noop interrupt handler
 
 int main(int argc, char *argv[])
 {
+	if (argc < 2) usage();
 
-	mqd_t mqd_server, mq_client;
-
+	// mqueue object
+	mqd_t mqueue;
+	// mqueue attributes
 	struct mq_attr attr;
-	char input_buff[266];
-	char output_buff[266];
-	struct message msg;
-	struct message* res;
-
 	attr.mq_flags = 0;
 	attr.mq_maxmsg = 10;
 	attr.mq_msgsize = 256;
 	attr.mq_curmsgs = 0;
+	// message buffer to store incoming and outgoing messages
+	char buffer[MESSAGE_BUFFER_SIZE];
+	// signal interrupt
+	int sig;
+	sigset_t signalset;
+	struct sigevent event;
 
-	//open the queue for reading
-	if ((mqd_server = mq_open(PROG_1_QUEUE_NAME, O_RDONLY | O_CREAT, 0660, &attr)) == -1)
+	// open the queue and create it if doesn't exist
+	printf("Open mqueue %s\n", MQUEUE);
+	if ((mqueue = mq_open(MQUEUE, O_RDWR | O_CREAT, 0660, &attr)) == -1)
 	{
 		perror("open queue");
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Executing P1\n");
+	// copy the content of the first argument into the message string field.
+	strcpy(buffer, argv[1]);
 
-
-	if (argc < 2)
-		usage();
-
-	//open the queue for writing
-	if ((mq_client = mq_open(PROG_2_QUEUE_NAME, O_WRONLY)) == 1)
+	// send the message
+	printf("Sending message: %s\n", buffer);
+	if (mq_send(mqueue, buffer, attr.mq_msgsize, 0) == -1)
 	{
-		perror("open client");
+		perror("sending message");
+		exit(EXIT_FAILURE);
 	}
 
-	//copy the content of the first argument into the message string field.
-	memcpy(msg.string, argv[1], strlen(argv[1])+1);
+	// wait for the other process to receive our message.
+	// this is to avoid to read our own message.
+	// Please note mq_notify only notifies you when there is a new message
+	// and the queue was empty.
+	// 
+	// register for mqueue notification requesting to receive SIGUSR1
+	event.sigev_notify = SIGEV_SIGNAL;
+	event.sigev_signo = SIGUSR1;
+	mq_notify(mqueue, &event);
 
+	// set the interrupt handler to catch SIGUSR1, otherwise 
+	// it will trigger the default behaviour (terminate)
+	struct sigaction signal_action;
+	signal_action.sa_handler = &noop;
+	signal_action.sa_flags = SA_RESTART;
+	sigaction(SIGUSR1, &signal_action, NULL);
 
-	// send the struct
-	if (mq_send(mq_client, (char *)&msg, attr.mq_msgsize, 0) == -1)
+	// wait for SIGUSR1 signal
+	sigemptyset(&signalset);
+	sigaddset(&signalset, SIGUSR1);
+	printf("Waiting for signal\n");
+	if(sigwait(&signalset, &sig) != 0)
 	{
-		if (errno == EBADF)
-		{
-			;;
-		}
-		else
-		{
-			perror("server failure");
-		}
-	}
-
-	printf("Data was sent\n");
-
-
-	printf("Wainting for Response from P2\n");
-	//receive the data back
-	if (mq_receive(mqd_server, input_buff, attr.mq_msgsize, NULL) == -1)
-	{
-		perror("receive");
+		perror("sigwait");
 	}
 	
-	int response = atoi(input_buff);
+	// receive ack message
+	printf("Waiting for message\n");
+	if (mq_receive(mqueue, buffer, attr.mq_msgsize, NULL) == -1)
+	{
+		perror("receiving message");
+		exit(EXIT_FAILURE);
+	}
+	printf("Message received: %s\n", buffer);
 
-	printf("Response got\n");
-	printf("Message received back: %d\n", response);
+	// close mqueue descriptor
+	printf("Terminating\n");
+	if (mq_close(mqueue) == -1)
+	{
+		perror("close");
+		exit(EXIT_FAILURE);
+	}
+	// delete mqueue
+	// it may raise an error if the other process delete the queue first
+	mq_unlink(MQUEUE);
 	return 0;
-}
-
-void usage(){
-	printf("./a.out <message>\n");
-	exit(EXIT_FAILURE);
 }
