@@ -9,10 +9,10 @@ do not require A and B to run at the same time.
 
 ## How to run
 
-A makefile is available for every example.
+A single makefile is available for all examples.
 You will be running 2 processes so it may require you to run process A and process B in two different TTY.
 
-Generally, I should be simple as `make`, then `./a.out` (on terminal 1) and `./b.out` (on terminal 2).
+Generally, I should be simple as `make`, then cd `IPC demo subdir` (i.e cd Semaphore) and then `./a.out` (on terminal 1) and `./b.out` (on terminal 2).
 Occasionally, a sigle executable is available, in which case the original process will fork. 
 To remove all the builds `make clean`
 
